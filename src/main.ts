@@ -1,70 +1,119 @@
-import './style.css'
+import './style.css';
 
-document.addEventListener("DOMContentLoaded", snek)
+document.addEventListener('DOMContentLoaded', snek);
 
-function snek(){
+type Segment = { x: number; y: number };
+function snek() {
     let canvas = <HTMLCanvasElement>document.getElementById('snek');
-    let fps = 70;
+    let fps = 1;
     let ctx = canvas.getContext('2d')!;
     ctx.strokeStyle = 'green';
-    let posY = canvas.width/2;
-    let posX = canvas.width/2;
+    canvas.width = canvas.getBoundingClientRect().width;
+    canvas.height = canvas.getBoundingClientRect().height;
     let previousTimestamp = 0;
-    let lineLength = 10;
-    let speedY = -1;
-    let speedX = 0;
+    let size = 10;
+    let foodCoords: Segment | null = null!;
+    let segments: Segment[] = [
+        { x: canvas.width / 2, y: canvas.height / 2 },
+        { x: canvas.width / 2, y: canvas.height / 2 + size },
+        { x: canvas.width / 2, y: canvas.height / 2 + size * 2 },
+    ];
+    let speedY = -10; //current Y speed
+    let speedX = 0; //current X speed
+    let speed = 10; //base speed
 
     addEventListener('keydown', (e) => {
-        console.log('key', e)
-        switch(e.key){
+        console.log('key', e);
+        switch (e.key) {
             case 'ArrowRight':
-                speedX = 1;
+                speedX = speed;
                 speedY = 0;
                 break;
             case 'ArrowLeft':
-                speedX = -1;
+                speedX = -speed;
                 speedY = 0;
                 break;
             case 'ArrowUp':
                 speedX = 0;
-                speedY = -1;
+                speedY = -speed;
                 break;
             case 'ArrowDown':
                 speedX = 0;
-                speedY = 1;
+                speedY = speed;
                 break;
         }
-    })
+    });
 
-    function drawLine(){
+    function drawFood() {
+        if (!foodCoords)
+            foodCoords = { x: getRandomIntInclusive(1, canvas.width), y: getRandomIntInclusive(1, canvas.height) };
         ctx.beginPath();
-        ctx.moveTo(posX, posY);
-        ctx.lineTo(speedX ? posX + lineLength : posX, speedY ? posY + lineLength : posY);
+        ctx.rect(foodCoords.x, foodCoords.y, 10, 10);
+        ctx.strokeStyle = 'red';
+        ctx.fillStyle = 'red';
         ctx.stroke();
     }
 
-    function moveLine(){
-        posY += speedY;
-        posX += speedX;
-        if(posY > canvas.height)posY = 0;
-        if(posY < 0 ) posY = canvas.height;
-        if(posX > canvas.width)posX = 0;
-        if(posX < 0) posX = canvas.width;
-
+    function checkFoodCollision() {
+        if (
+            ((segments[0].x >= foodCoords.x && segments[0].x <= foodCoords.x + size) ||
+                (foodCoords.x >= segments[0].x && foodCoords.x <= segments[0].x + size)) &&
+            ((segments[0].y >= foodCoords.y && segments[0].y <= foodCoords.y + size) ||
+                (foodCoords.y >= segments[0].y && foodCoords.y <= segments[0].y + size))
+        )
+            foodCoords = null;
     }
 
-    function loop(timestamp: DOMHighResTimeStamp){
+    function drawSegment() {
+        for (let i = 0; i < segments.length; i++) {
+            ctx.beginPath();
+            i === 0 ? (ctx.strokeStyle = 'green') : (ctx.strokeStyle = 'red');
+            ctx.rect(segments[i].x, segments[i].y, 10, 10);
+            ctx.stroke();
+        }
+    }
+
+    function moveSegments() {
+        let update: Segment[] = [];
+        for (let i = 0; i < segments.length; i++) {
+            let currX = segments[i].x;
+            let currY = segments[i].y;
+
+            if (i === 0) {
+                currX += speedX;
+                currY += speedY;
+
+                if (currY > canvas.height) currY = 0;
+                if (currY < 0) currY = canvas.height;
+                if (currX > canvas.width) currX = 0;
+                if (currX < 0) currX = canvas.width;
+            } else {
+                currX = segments[i - 1].x;
+                currY = segments[i - 1].y;
+            }
+            update.push({ x: currX, y: currY });
+        }
+        segments = update;
+    }
+
+    function loop(timestamp: DOMHighResTimeStamp) {
         //FPS Limiter
-        requestAnimationFrame(loop)
-        if(timestamp - previousTimestamp < Math.ceil(1000/fps)) return;
+        requestAnimationFrame(loop);
+        if (timestamp - previousTimestamp < Math.ceil(1000 / fps)) return;
 
-        ctx.clearRect(0,0,canvas.width, canvas.height);
-        moveLine();
-        drawLine();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        moveSegments();
+        drawSegment();
+        drawFood();
+        console.log(checkFoodCollision());
         previousTimestamp = timestamp;
+    }
 
+    function getRandomIntInclusive(min: number, max: number) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1) + min); // The maximum is inclusive and the minimum is inclusive
     }
 
     requestAnimationFrame(loop);
-
 }
